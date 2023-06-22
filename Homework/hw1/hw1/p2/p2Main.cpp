@@ -27,8 +27,35 @@ int main()
    }
 
    // TODO read and execute commands
-   // cout << "Enter command: ";
+   cout << "Enter command: ";
    while (true) {
-      // cout << "Enter command: ";
+      string command, content;
+      cin >> command;
+      
+      if (command == "PRINT") {
+         json.print();
+      }
+      else if (command == "SUM") {
+         json.sum();
+      }
+      else if (command == "AVE") {
+         json.ave();
+      }
+      else if (command == "MAX") {
+         json.max();
+      }
+      else if (command == "MIN") {
+         json.min();
+      }
+      else if (command == "ADD") {
+         string key;
+         int value;
+         cin >> key >> value;
+         json.add(key, value);
+      }
+      else if (command == "EXIT") {
+         break;
+      }
+      cout << "Enter command: ";
    }
 }
