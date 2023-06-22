@@ -99,7 +99,28 @@ getChar(istream& istr)
       //
       // Combo keys: multiple codes for one key press
       // -- Usually starts with ESC key, so we check the "case ESC"
-      // case ESC_KEY:
+      case ESC_KEY:{
+         char combo = mygetc(istr);
+         if (combo == char(ARROW_KEY_INT)) {
+            char key = mygetc(istr);
+            if (key >= char(ARROW_UP_KEY) && key <= char(ARROW_LEFT_KEY))
+               return returnCh(int(key) + ARROW_KEY_FLAG);
+            // removed after
+            else if (key == char(HOME_KEY) || key == char(END_KEY))
+               return returnCh(int(key) + MOD_KEY_FLAG);
+            // removed after
+            else if (key >= char(INSERT_KEY) && key <= char(PG_DOWN_KEY)){
+               char dummy = mygetc(istr);
+               if (dummy == MOD_KEY_DUMMY)
+                  return returnCh(int(key) + MOD_KEY_FLAG);
+               else
+                  return returnCh(UNDEFINED_KEY);
+            }
+         }
+      }
+
+      case BACK_SPACE_KEY:
+         return returnCh(BACK_SPACE_KEY);
 
       // For the remaining printable and undefined keys
       default:

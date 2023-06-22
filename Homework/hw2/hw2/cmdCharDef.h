@@ -95,10 +95,10 @@ enum ParseChar
    //
    MOD_KEY_FLAG     = 1 << 9,
    MOD_KEY_INT      = 91,
-   HOME_KEY         = 49 + MOD_KEY_FLAG,
+   HOME_KEY         = 72 + MOD_KEY_FLAG, // change 49 -> 72
    INSERT_KEY       = 50 + MOD_KEY_FLAG,
    DELETE_KEY       = 51 + MOD_KEY_FLAG,
-   END_KEY          = 52 + MOD_KEY_FLAG,
+   END_KEY          = 70 + MOD_KEY_FLAG, // changed 52 -> 70
    PG_UP_KEY        = 53 + MOD_KEY_FLAG,
    PG_DOWN_KEY      = 54 + MOD_KEY_FLAG,
    MOD_KEY_BEGIN    = HOME_KEY,
