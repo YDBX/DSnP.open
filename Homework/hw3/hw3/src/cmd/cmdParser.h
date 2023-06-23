@@ -138,6 +138,7 @@ private:
    ParseChar getChar(istream&) const;
    bool readCmd(istream&);
    CmdExec* parseCmd(string&);
+   vector<string> matchedCmd(const string&);
    void listCmd(const string&);
    void printPrompt() const { cout << _prompt; }
 

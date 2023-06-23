@@ -20,6 +20,19 @@ bool
 initDbCmd()
 {
    // TODO...
+   if (!(cmdMgr->regCmd("DBAPpend", 4, new DBAppendCmd) &&
+         cmdMgr->regCmd("DBAVerage", 4, new DBAveCmd) &&
+         cmdMgr->regCmd("DBCount", 3, new DBCountCmd) &&
+         cmdMgr->regCmd("DBMAx", 4, new DBMaxCmd) &&
+         cmdMgr->regCmd("DBMIx", 4, new DBMinCmd) &&
+         cmdMgr->regCmd("DBPrint", 3, new DBPrintCmd) &&
+         cmdMgr->regCmd("DBRead", 3, new DBReadCmd) &&
+         cmdMgr->regCmd("DBSOrt", 4, new DBSortCmd) &&
+         cmdMgr->regCmd("DBSUm", 4, new DBSumCmd)
+      )) {
+      cerr << "Registering \"init\" commands fails... exiting" << endl;
+      return false;
+   }
    return true;
 }
 
@@ -31,6 +44,24 @@ DBAppendCmd::exec(const string& option)
 {
    // TODO...
    // check option
+   vector<string> tokens;
+   if (!CmdExec::lexOptions(option, tokens, 2))
+      return CMD_EXEC_ERROR;
+   string key = tokens[0];
+   if (!isValidVarName(key))
+      return CmdExec::errorOption(CMD_OPT_ILLEGAL, tokens[0]);
+
+   int value;
+   if (!myStr2Int(tokens[1], value))
+      return CmdExec::errorOption(CMD_OPT_ILLEGAL, tokens[1]);
+   
+   DBJsonElem newElem(key, value);
+   if (!!dbjson) {
+      if (!dbjson.add(newElem))
+         cerr << "Error: Element with key \"" << key << "\" already exists!!" << endl;
+   }
+   else
+      cerr << "Error: DB is not created yet!!"<< endl;
 
    return CMD_EXEC_DONE;
 }
@@ -198,6 +229,25 @@ CmdExecStatus
 DBPrintCmd::exec(const string& option)
 {  
    // TODO...
+   string token;
+   if (!CmdExec::lexSingleOption(option, token))
+      return CMD_EXEC_ERROR;
+   
+   if (token.size()) {
+      for (size_t i = 0; i < dbjson.size(); ++i) {
+         if (dbjson[i].key() == token) {
+            cout << "{ " << dbjson[i] << " }" << endl;
+            return CMD_EXEC_DONE;
+         }
+      }
+      cerr << "Error: No JSON element with key \"" << token << "\" is found." << endl;
+   }
+   else{
+      if (!dbjson)
+         cerr << "Error: DB is not created yet!!" << endl;
+      else
+         cout << dbjson;
+   }
 
    return CMD_EXEC_DONE;
 }
@@ -250,7 +300,8 @@ DBReadCmd::exec(const string& option)
       return CMD_EXEC_ERROR;
    }
 
-   if (dbjson) {
+   // error here
+   if (!!dbjson) {
       if (!doReplace) {
          cerr << "Error: DB exists. Use \"-Replace\" option for "
               << "replacement.\n";
@@ -260,7 +311,8 @@ DBReadCmd::exec(const string& option)
       dbjson.reset();
    }
 //   if (!(ifs >> dbtbl)) return CMD_EXEC_ERROR;
-   ifs >> dbjson;
+   if (!(ifs >> dbjson))
+      return CMD_EXEC_ERROR;
    cout << "\"" << fileName << "\" was read in successfully." << endl;
 
    return CMD_EXEC_DONE;

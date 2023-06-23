@@ -48,6 +48,7 @@ public:
    void sort(const DBSortKey&);
    void sort(const DBSortValue&);
    int sum() const;
+   bool hasRead = false;
 
    // Basic access functions
    void reset();
@@ -58,9 +59,9 @@ public:
 
    // TODO modify these two functions according to the comments
    // return true if JSON file hasn't been read in
-   bool operator !() { return false; }
+   bool operator !() { return !hasRead; }
    // return this if JSON file has been read in; return NLL if not.
-   operator void* () const { return NULL; }
+   operator void* () const { if (hasRead) return *this; else return NULL; }
 
    // Read DBJson
    friend istream& operator >> (istream& is, DBJson& j);

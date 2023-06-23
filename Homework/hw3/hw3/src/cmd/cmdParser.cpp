@@ -29,7 +29,19 @@ bool
 CmdParser::openDofile(const string& dof)
 {
    // TODO...
-   _dofile = new ifstream(dof.c_str());
+   size_t maxDepth = 1024;
+   if (_dofileStack.size() == maxDepth)
+      return false;
+   string prefix = "./dofiles/";
+   _dofile = new ifstream(prefix + dof.c_str());
+   if (!_dofile->is_open()){
+      if (!_dofileStack.empty())
+         _dofile = _dofileStack.top();
+      else
+         _dofile = 0;
+      return false;
+   }
+   _dofileStack.push(_dofile);
    return true;
 }
 
@@ -39,7 +51,13 @@ CmdParser::closeDofile()
 {
    assert(_dofile != 0);
    // TODO...
+   _dofileStack.top()->close();
+   _dofileStack.pop();
    delete _dofile;
+   if (!_dofileStack.empty())
+      _dofile = _dofileStack.top();
+   else
+      _dofile = 0;
 }
 
 // Return false if registration fails
@@ -98,6 +116,8 @@ void
 CmdParser::printHelps() const
 {
    // TODO...
+   for (auto const &cmd: _cmdMap)
+      cmd.second->help();
 }
 
 void
@@ -140,7 +160,34 @@ CmdParser::parseCmd(string& option)
 
    // TODO...
    assert(str[0] != 0 && str[0] != ' ');
-   return NULL;
+   size_t begin = str.find_first_of(' ');
+   if (begin != string::npos)
+      option = str.substr(begin);
+   return getCmd(str);
+}
+
+vector<string>
+CmdParser::matchedCmd(const string& prefix) {
+   
+   vector<string> matched;
+   if (prefix.size()) {
+      for (auto const &elm: _cmdMap) {
+         unsigned n = prefix.size();
+         string cmd = elm.first + elm.second->getOptCmd();
+         string s2 = cmd.substr(0, n);
+         if (myStrNCmp(prefix, s2, n) == 0){
+            matched.push_back(cmd);
+         }
+      }
+      return matched;
+   }
+
+   for (auto const &elm: _cmdMap) {
+      string cmd = elm.first + elm.second->getOptCmd();
+      matched.push_back(cmd);
+   }
+   return matched;
+
 }
 
 // Remove this function for TODO...
@@ -290,10 +337,116 @@ CmdParser::parseCmd(string& option)
 //    cmd> he haha$kk
 //    [After Tab]
 //    ==> Beep and stay in the same location
+
 void
 CmdParser::listCmd(const string& str)
 {
    // TODO...
+   size_t begin = str.find_first_not_of(' ');
+   size_t end = str.find_first_of(' ', begin + 1);
+   string prefix;
+   vector<string> matched;
+   if (begin == string::npos) {
+
+      matched = matchedCmd(prefix);
+      printCand(matched, 12);
+      reprintCmd();
+      _tabPressCount = 0;
+
+   }
+   else {
+      if (end == string::npos) {
+         
+         // find out all partially matched commands
+         prefix = str.substr(begin);
+         matched = matchedCmd(prefix);
+         
+         // 2. list all partially matched commands
+         if (matched.size() > 1) {
+            printCand(matched, 12);
+            reprintCmd();
+         }
+         // 3. list the single matched command
+         else if (matched.size() == 1) {
+
+            size_t begin = prefix.size();
+            string insert = matched[0].substr(begin);
+            
+            reprintCmd();
+            for (size_t i = 0; i < insert.size(); ++i)
+               insertChar(insert[i]);
+            insertChar(' ');
+         }
+         // 4. no match in first word
+         else {
+            mybeep();
+         }
+         _tabPressCount = 0;
+      }
+      else {
+
+         if (_tabPressCount == 1) {
+
+            string s1 = str.substr(begin, end - begin);
+            unsigned n = s1.size();
+
+            for (auto const &elm: _cmdMap) {
+               string cmd = elm.first + elm.second->getOptCmd();
+               if (matchedCmd(cmd).size() != 1)
+                  return;
+               string s2 = cmd.substr(0, n);
+               if (myStrNCmp(s1, s2, n) == 0) {
+                  cout << endl;
+                  elm.second->usage(cout);
+                  reprintCmd();
+               }
+            }
+
+         }
+         // 6. first word already matched on second and later tab pressing
+         else if (_tabPressCount == 2) {
+
+            vector<string> files;
+            string dir = ".", prefix;
+            size_t dirEnd;
+            dirEnd = str.find_last_of('/');
+            if (dirEnd == string::npos){
+               prefix = str.substr(end + 1);
+            }
+            else {
+               dir = str.substr(end + 1, dirEnd - end - 1);
+               prefix = str.substr(dirEnd + 1);
+            }
+
+            if (listDir(files, prefix, dir) == 0) {
+               if (files.size() > 1) {
+                  string comPre = commonPrefix(files);
+                  // 6.1.2, 6.3
+                  if (comPre.size() - prefix.size()) {
+                     string insert = comPre.substr(prefix.size());
+                     for (size_t i = 0; i < insert.size(); ++i)
+                        insertChar(insert[i]);
+                     mybeep();
+                  }
+                  // 6.1.1, 6.2
+                  else {
+                     printCand(files, 16);
+                     reprintCmd();
+                  }
+               }
+               // 6.1.3, 6.4
+               else if (files.size() == 1) {
+                  string insert = files[0].substr(prefix.size());
+                  for (size_t i = 0; i < insert.size(); ++i)
+                     insertChar(insert[i]);
+                  insertChar(' ');
+                  mybeep();
+               }
+            }
+         }
+      }
+   }
+   
 }
 
 // cmd is a copy of the original input
@@ -312,6 +465,17 @@ CmdParser::getCmd(string cmd)
 {
    CmdExec* e = 0;
    // TODO...
+   for (size_t i = 0; i < cmd.size(); ++i)
+      cmd[i] = toupper(cmd[i]);
+   size_t l = cmd.size();
+   while (cmd.size()) {
+      if (_cmdMap.find(cmd) == _cmdMap.end()){
+         cmd.resize(--l);
+         continue;
+      }
+      e = _cmdMap[cmd];
+      break;
+   }
    return e;
 }
 

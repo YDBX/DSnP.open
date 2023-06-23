@@ -26,5 +26,7 @@ extern char myGetChar();
 
 // In util.cpp
 extern int listDir(vector<string>&, const string&, const string&);
+extern void printCand(vector<string>&, int);
+extern string commonPrefix(vector<string>&);
 
 #endif // UTIL_H
