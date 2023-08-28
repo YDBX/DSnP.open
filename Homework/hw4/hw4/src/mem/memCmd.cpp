@@ -79,6 +79,70 @@ CmdExecStatus
 MTNewCmd::exec(const string& option)
 {
    // TODO
+   
+   // check options
+   vector<string> options;
+   if (!CmdExec::lexOptions(option, options))
+      return CMD_EXEC_ERROR;
+
+   // check "options" is not empty
+   if (options.empty())
+      return CmdExec::errorOption(CMD_OPT_MISSING, "");
+   
+   int numObjects;
+   int arraySize;
+   // Check if the first option is "-Array"
+   if (myStrNCmp("-Array", options[0], 2) != 0) {
+      if (!myStr2Int(options[0], numObjects) || numObjects <= 0)
+         return CmdExec::errorOption(CMD_OPT_ILLEGAL, options[0]);
+      
+      if (options.size() == 1) {
+         try {
+            mtest.newObjs(numObjects);
+         } catch (const exception& e) {
+            cerr << e.what() << '\n';
+         }
+         return CMD_EXEC_DONE;
+      }
+
+      if (myStrNCmp("-Array", options[1], 2) != 0)
+         return CmdExec::errorOption(CMD_OPT_ILLEGAL, options[1]);
+      
+      if (options.size() == 2)
+         return CmdExec::errorOption(CMD_OPT_MISSING, options[1]);
+      
+      if (!myStr2Int(options[2], arraySize) || arraySize <= 0)
+         return CmdExec::errorOption(CMD_OPT_ILLEGAL, options[2]);
+      
+      if (options.size() > 3)
+         return CmdExec::errorOption(CMD_OPT_EXTRA, options[3]);
+
+      try {
+         mtest.newArrs(numObjects, arraySize);
+      } catch (const bad_alloc& e) {
+         cerr << e.what() << '\n';
+      }
+      return CMD_EXEC_DONE;
+   }
+
+   // If the first options is "-Array"
+   if (options.size() == 1)
+      return CmdExec::errorOption(CMD_OPT_MISSING, options[0]);
+   
+   if (!myStr2Int(options[1], arraySize) || arraySize <= 0)
+      return CmdExec::errorOption(CMD_OPT_ILLEGAL, options[1]);
+   
+   if (options.size() == 2)
+      return CmdExec::errorOption(CMD_OPT_MISSING, options[1]);
+   
+   if (!myStr2Int(options[2], numObjects) || numObjects <= 0)
+      return CmdExec::errorOption(CMD_OPT_ILLEGAL, options[2]);
+   
+   try {
+      mtest.newArrs(numObjects, arraySize);
+   } catch (const bad_alloc& e) {
+      cerr << e.what() << '\n';
+   }
 
    // Use try-catch to catch the bad_alloc exception
    return CMD_EXEC_DONE;
@@ -105,6 +169,110 @@ CmdExecStatus
 MTDeleteCmd::exec(const string& option)
 {
    // TODO
+   vector<string> options;
+   if (!CmdExec::lexOptions(option, options, 0))
+      return CMD_EXEC_ERROR;
+
+   // none of "-Index" or "-Random" is specified
+   if (options.empty())
+      return CmdExec::errorOption(CMD_OPT_MISSING, "");
+   
+   // check if "-Array" is specified in first option
+   int num;
+   size_t arraySize;
+   bool array = false;
+   size_t objId;
+   RandomNumGen rnGen;
+   if (myStrNCmp("-Array", options[0], 2) != 0) {
+      // check if the first options is "-Index" or "-Random"
+      if (myStrNCmp("-Index", options[0], 2) != 0 && myStrNCmp("-Random", options[0], 2) != 0)
+         return CmdExec::errorOption(CMD_OPT_ILLEGAL, options[0]);
+      bool index = (myStrNCmp("-Index", options[0], 2) == 0);
+      
+      // check if "objId" or "numRandId" is specified
+      if (options.size() < 2)
+         return CmdExec::errorOption(CMD_OPT_MISSING, options[0]);
+      
+      // check if "objId" or "numRandId" is specified
+      if (!myStr2Int(options[1], num) || num < 0)
+         return CmdExec::errorOption(CMD_OPT_ILLEGAL, options[1]);
+      
+      if (options.size() == 3) {
+         if (myStrNCmp("-Array", options[2], 2) != 0)
+            return CmdExec::errorOption(CMD_OPT_ILLEGAL, options[2]);
+         array = true;
+      }
+      
+      if (options.size() > 3)
+         return CmdExec::errorOption(CMD_OPT_EXTRA, options[3]);
+      
+      arraySize = (array)? mtest.getArrListSize():mtest.getObjListSize();
+      objId = num;
+      if (index) {
+         if (objId >= arraySize) {
+            string out = (array)? "object":"array";
+            cerr << "Size of "<< out << " list (" << arraySize << ") is <= " << objId << "!!\n";
+            return CMD_EXEC_DONE;
+         }
+         (array)? mtest.deleteArr(objId):mtest.deleteObj(objId);
+      }
+      else {
+         if (arraySize == 0) {
+            string out = (array)? "object": "array";
+            cerr << "Size of " << out << " list is 0!!\n";
+            return CMD_EXEC_DONE;
+         }
+         for (int i = 0; i < num; ++i) {
+            objId = rnGen(arraySize);
+            (array)? mtest.deleteArr(objId):mtest.deleteObj(objId);
+         }
+      }
+      return CMD_EXEC_DONE;
+   }
+
+   array = true; arraySize = mtest.getArrListSize();
+   if (options.size() == 1)
+      return CmdExec::errorOption(CMD_OPT_MISSING, options[0]);
+   
+   // check if the first options is "-Index" or "-Random"
+   if (myStrNCmp("-Index", options[1], 2) != 0 && myStrNCmp("-Random", options[1], 2) != 0)
+      return CmdExec::errorOption(CMD_OPT_ILLEGAL, options[1]);
+   bool index = (myStrNCmp("-Index", options[1], 2) == 0);
+   
+   if (options.size() < 3)
+      return CmdExec::errorOption(CMD_OPT_MISSING, options[1]);
+   
+   // check if "objId" or "numRandId" is int
+   if (!myStr2Int(options[2], num))
+      return CmdExec::errorOption(CMD_OPT_ILLEGAL, options[2]);
+
+   // check if "objId" or "numRandId" is legal
+   if (num < 0)
+      return CmdExec::errorOption(CMD_OPT_ILLEGAL, options[2]);
+   
+   // check if extra options is specified
+   if (options.size() >= 4)
+      return CmdExec::errorOption(CMD_OPT_EXTRA, options[3]);
+
+   objId = num;
+   if (index) {
+      // check if "objId" is no smaller than the size of "_objList" (if no "-Array") or "_arrList" (if with "-Array")
+      if (objId >= arraySize) {
+         cerr << "Size of array list (" << arraySize << ") is <= " << objId << "!!\n";
+         return CMD_EXEC_DONE;
+      }
+      mtest.deleteArr(objId);
+   } else {
+      if (arraySize == 0) {
+         string out = (array)? "object": "array";
+         cerr << "Size of " << out << " list is 0!!\n";
+         return CMD_EXEC_DONE;
+      }
+      for (int i = 0; i < num; ++i) {
+         size_t objId = rnGen(arraySize);
+         mtest.deleteArr(objId);
+      }
+   }
 
    return CMD_EXEC_DONE;
 }
